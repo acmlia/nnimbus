@@ -7,7 +7,10 @@ import logging
 import pandas as pd
 import numpy as np
 
+from pprint import pformat
+
 from core import utils
+from core import validation
 from core import graphics as g
 
 from sklearn.preprocessing import Normalizer
@@ -31,8 +34,6 @@ class Training:
     NN_RUN = 0
     OUTPUT_DIR = 'output/'
     RANDOM_SEED = 0
-
-    PCA = PCA()
 
     def __init__(self, INPUT_DATA=None, PCTAG='notag', NN_RUN=0, OUTPUT_DIR='output/', RANDOM_SEED=0):
 
@@ -199,8 +200,8 @@ class Training:
         tb_low = df_normed_input.loc[:, ['10V', '10H', '18V', '18H']]
         tb_high = df_normed_input.loc[:, ['36V', '36H', '89V', '89H', '166V', '166H']]
 
-        # Calculating the contribution from the attributes to the PCA
-        pca = self.PCA
+        # Calculating the attributes contribution to the PCA
+        pca = PCA()
         pca1 = pca.fit(tb_low)
 
         # Generating and saving figures
@@ -208,105 +209,66 @@ class Training:
 
         # Applying PCA transform on the low frequency channels
         pca_trans1 = PCA(n_components=2)
-        pca1 = pca_trans1.fit(tb_low)
+        pca_trans1.fit(tb_low)
         tb_low_transformed = pca_trans1.transform(tb_low)
         logging.info("PCA original shape:   ", tb_low.shape)
         logging.info("PCA transformed shape:", tb_low_transformed.shape)
-        # ------------------------------------------------------------------------------
 
-        # Repeating all steps above for the second PCA: TODO continue from here
+        # Repeating the above steps for the second PCA
         pca = PCA()
         pca2 = pca.fit(tb_high)
-        plt.plot(np.cumsum(pca2.explained_variance_ratio_))
-        plt.xlabel('Number of components for tb_high')
-        plt.ylabel('Cumulative explained variance')
-        plt.savefig(self.path_fig + self.version + 'PCA_tb_high.png')
-        # ---
-        pca_trans2 = PCA(n_components=2)
-        pca2 = pca_trans2.fit(tb_high)
-        tb_high_transformed = pca_trans2.transform(tb_high)
-        print("original shape:   ", tb_high.shape)
-        print("transformed shape:", tb_high_transformed.shape)
-        # ------------------------------------------------------------------------------
-        # JOIN THE TREATED VARIABLES IN ONE SINGLE DATASET AGAIN:
 
-        PCA1 = pd.DataFrame(tb_low_transformed[:],
-                            columns=['pca1_1', 'pca_2'])
-        PCA2 = pd.DataFrame(tb_high_transformed[:],
-                            columns=['pca2_1', 'pca2_2'])
+        # Generating and saving figures
+        self.grph.plot_pca_contrib(pca2, 'high')
+
+        # Applying PCA transform on the low frequency channels
+        pca_trans2 = PCA(n_components=2)
+        pca_trans2.fit(tb_high)
+        tb_high_transformed = pca_trans2.transform(tb_high)
+        logging.info("original shape:   ", tb_high.shape)
+        logging.info("transformed shape:", tb_high_transformed.shape)
+
+        # Join both PCAs back into one sigle dataset
+        PCA1 = pd.DataFrame(tb_low_transformed[:], columns=['pca1_1', 'pca_2'])
+        PCA2 = pd.DataFrame(tb_high_transformed[:], columns=['pca2_1', 'pca2_2'])
 
         dataset = PCA1.join(PCA2, how='right')
         dataset = dataset.join(ancillary, how='right')
-        dataset = dataset.join(df_orig.loc[:, ['sfcprcp']], how='right')
-        # ------------------------------------------------------------------------------
+        dataset = dataset.join(df.loc[:, ['sfcprcp']], how='right')
 
+        # SUBSET BY PRECIPITATION RANGE
         dataset = utils.keep_df_interval(0.2, 60, dataset, 'sfcprcp')
 
-        # ----------------------------------------
-        # SUBSET BY SPECIFIC CLASS (UNDERSAMPLING)
-        #        n = 0.98
-        #        to_remove = np.random.choice(
-        #            dataset.index,
-        #            size=int(dataset.shape[0] * n),
-        #            replace=False)
-        #        dataset = dataset.drop(to_remove)
-
-        # ------------------------------------------------------------------------------
         # Split the data into train and test
         # Now split the dataset into a training set and a test set.
         # We will use the test set in the final evaluation of our model.
-
-        train_dataset = dataset.sample(frac=0.8, random_state=0)
+        train_dataset = dataset.sample(frac=0.8, random_state=self.RANDOM_SEED)
         test_dataset = dataset.drop(train_dataset.index)
 
-        # ------------------------------------------------------------------------------
-        # Inspect the data:
-        # Have a quick look at the joint distribution of a few pairs of columns from the training set.
-
-        colunas = list(dataset.columns.values)
-
-        # ------------------------------------------------------------------------------
         # Also look at the overall statistics:
         train_stats = train_dataset.describe()
         train_stats.pop("sfcprcp")
         train_stats = train_stats.transpose()
 
-        # ------------------------------------------------------------------------------
         # Split features from labels:
         # Separate the target value, or "label", from the features.
         # This label is the value that you will train the model to predict.
-
         y_train = train_dataset.pop('sfcprcp')
         y_test = test_dataset.pop('sfcprcp')
 
-        # ------------------------------------------------------------------------------
         # Normalize the data:
-
         scaler = StandardScaler()
         normed_train_data = scaler.fit_transform(train_dataset)
         normed_test_data = scaler.fit_transform(test_dataset)
 
-        # ------------------------------------------------------------------------------
         # Build the model:
-
         model = self.build_reg_model(len(train_dataset.keys()))
-        # ------------------------------------------------------------------------------
+
         # Inspect the model:
         # Use the .summary method to print a simple description of the model
-
         model.summary()
 
-        # ------------------------------------------------------------------------------
-        # It seems to be working, and it produces a result
-        # of the expected shape and type.
-
-        # Train the model:
-        # Train the model for 1000 epochs, and record the training
-        # and validation accuracy in the history object.
-
-        # ------------------------------------------------------------------------------
         # Display training progress by printing a single dot for each completed epoch
-
         class PrintDot(keras.callbacks.Callback):
             def on_epoch_end(self, epoch, logs):
                 if epoch % 10 == 0: print('')
@@ -320,34 +282,25 @@ class Training:
             callbacks=[PrintDot()])
         print(history.history.keys())
 
-        # ------------------------------------------------------------------------------
         # Visualize the model's training progress using the stats
         # stored in the history object.
-
         hist = pd.DataFrame(history.history)
         hist['epoch'] = history.epoch
         hist.tail()
 
-        self.plot_history(history)
-        # ------------------------------------------------------------------------------
+        self.grph.plot_history(history)
 
         model = self.build_reg_model(len(train_dataset.keys()))
 
         # The patience parameter is the amount of epochs to check for improvement
-        early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
+        early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=100)
 
         history = model.fit(normed_train_data, y_train, epochs=EPOCHS,
                             validation_split=0.2, verbose=0, callbacks=[early_stop, PrintDot()])
 
-        # ------------------------------------------------------------------------------
         # Ploting again, but with the EarlyStopping apllied:
+        self.grph.plot_history_early_stopping(history)
 
-        self.plot_history_EarlyStopping(history)
-
-        # The graph shows that on the validation set, the average error
-        # is usually around +/- 2 MPG. Is this good?
-        # We'll leave that decision up to you.
-        # ------------------------------------------------------------------------------
         # Let's see how well the model generalizes by using
         # the test set, which we did not use when training the model.
         # This tells us how well we can expect the model to predict
@@ -355,22 +308,19 @@ class Training:
 
         loss, mae, mse = model.evaluate(normed_test_data, y_test, verbose=0)
 
-        print("Testing set Mean Abs Error: {:5.2f} sfcprcp".format(mae))
-        # ------------------------------------------------------------------------------
-        # -----------------------------------------------------------------------------
-        # Make predictions
-        # Finally, predict SFCPRCP values using data in the testing set:
+        logging.info("Testing set Mean Abs Error: {:5.2f} sfcprcp".format(mae))
 
+        # Make predictions
+        # Finally, predict SFCPRCP values using data in the testing set
         test_predictions = model.predict(normed_test_data).flatten()
 
-        # Appplying meteorological skills to verify the performance of the TRAIN/TESTE model, in this case, continous scores:
-
-        skills = ContinuousScores()
+        # Appplying meteorological skills to verify the performance
+        # of the TRAIN/TESTE model, in this case, continous scores
+        skills = validation.ContinuousScores()
         val_y_pred_mean, val_y_test_mean, val_mae, val_rmse, val_std, val_fseperc, val_fse, val_corr, val_num_pixels = skills.metrics(
             y_test, test_predictions)
 
-        # converting to text file
-        print("converting arrays to text files")
+        # Converting validation statistics to dictionary
         my_scores = {'val_y_pred_mean': val_y_pred_mean,
                      'val_y_test_mean': val_y_test_mean,
                      'val_mae': val_mae,
@@ -381,63 +331,38 @@ class Training:
                      'val_corr': val_corr,
                      'val_num_pixels': val_num_pixels}
 
-        with open(self.path_fig + 'continuous_scores_TEST_TRAIN_' + self.version + '.txt', 'w') as myfile:
-            myfile.write(str(my_scores))
-        print("Text file saved!")
+        my_scores = pformat(my_scores)
 
-        plt.figure()
-        plt.scatter(y_test, test_predictions)
-        plt.xlabel('True Values [sfcprcp]')
-        plt.ylabel('Predictions [sfcprcp]')
-        plt.axis('equal')
-        plt.axis('square')
-        plt.xlim([0, plt.xlim()[1]])
-        plt.ylim([0, plt.ylim()[1]])
-        plt.plot([-100, 100], [-100, 100])
-        fig_name = self.fig_title + "_plot_scatter_y_test_vs_y_pred.png"
-        plt.savefig(self.path_fig + fig_name)
-        plt.clf()
+        logging.info(f'Validation statistics:\n\n{my_scores}\n')
 
-        # ------------------------------------------------------------------------------
-        ax = plt.gca()
-        ax.plot(y_test, test_predictions, 'o', c='blue', alpha=0.07, markeredgecolor='none')
-        ax.set_yscale('log')
-        ax.set_xscale('log')
-        ax.set_xlabel('True Values [sfcprcp]')
-        ax.set_ylabel('Predictions [sfcprcp]')
-        plt.plot([-100, 100], [-100, 100])
-        fig_name = self.fig_title + "_plot_scatter_LOG_y_test_vs_y_pred.png"
-        plt.savefig(self.path_fig + fig_name)
-        plt.clf()
-        # ------------------------------------------------------------------------------
-        # ------------------------------------------------------------------------------
-        # It looks like our model predicts reasonably well.
-        # Let's take a look at the error distribution.
+        # Saving scores dictionary
+        with open(f'{self.OUTPUT_DIR}{self.PCTAG}v{self.NN_RUN}_continuous_scores_TEST_TRAIN.txt', 'w') as myfile:
+            myfile.write(my_scores)
 
+        logging.info(f'Retrieval validation statistics file saved at:\n\n'
+                     f'{self.OUTPUT_DIR}{self.PCTAG}v{self.NN_RUN}_continuous_scores_TEST_TRAIN.txt')
+
+        # Plot & save : scatter test vs pred
+        self.grph.plot_scatter_test_vs_pred(y_test, test_predictions)
+
+        # Plot & save : LOG scatter test vs pred
+        self.grph.plot_scatter_log_test_vs_pred(y_test, test_predictions)
+
+        # Plot & save : error distribution
         error = test_predictions - y_test
-        plt.hist(error, bins=25)
-        plt.xlabel("Prediction Error [sfcprcp]")
-        plt.ylabel("Count")
-        fig_name = self.fig_title + "_prediction_error.png"
-        plt.savefig(self.path_fig + fig_name)
-        plt.clf()
+        self.grph.plot_prediction_error(error)
 
-        # ------------------------------------------------------------------------------
-        # HISTROGRAM 2D
-        hist2dplot = self.grph.plot_hist2d(y_test, test_predictions)
+        # Plot & save : hist2d
+        self.grph.plot_hist2d(y_test, test_predictions)
 
-
-        # ------------------------------------------------------------------------------
         # Saving model to YAML:
-
         model_yaml = model.to_yaml()
-        with open(self.mod_out_pth + self.mod_out_name + '.yaml', 'w') as yaml_file:
+        with open(f'{self.OUTPUT_DIR}{self.PCTAG}v{self.NN_RUN}.yaml', 'w') as yaml_file:
             yaml_file.write(model_yaml)
 
         # serialize weights to HDF5
-        model.save_weights(self.mod_out_pth + self.mod_out_name + '.h5')
-        print("Saved model to disk")
+        model.save_weights(f'{self.OUTPUT_DIR}{self.PCTAG}v{self.NN_RUN}_weights.h5')
 
         # Saving the complete model in HDF5:
-        model.save(self.mod_out_pth + self.mod_out_name + '_tf.h5')
+        model.save(f'{self.OUTPUT_DIR}{self.PCTAG}v{self.NN_RUN}.h5')
 
