@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 from core import utils
-from core import graphics
+from core import graphics as g
 
 from sklearn.preprocessing import Normalizer
 from sklearn.model_selection import train_test_split
@@ -41,6 +41,7 @@ class Training:
         self.NN_RUN = NN_RUN
         self.OUTPUT_DIR = OUTPUT_DIR
         self.RANDOM_SEED = RANDOM_SEED
+        self.grph = g.Graphics(self.PCTAG, self.NN_RUN, self.OUTPUT_DIR)
 
     # --------------------------------------------------------------------------
     # BUILD NN MODELS - DEFINITIONS : CLAS = CLASSIFICATION and REG = REGRESSION
@@ -57,7 +58,7 @@ class Training:
         model.add(Dense(2, kernel_initializer='uniform', activation='relu'))
         model.add(Dense(1, kernel_initializer='uniform', activation='sigmoid'))
         # Compile model
-        model.compile(loss='binary_crossentropy', optimizer='SGD', metrics=['accuracy'], )
+        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
         return model
 
     @staticmethod
@@ -86,6 +87,15 @@ class Training:
 
         # Load dataset:
         df = self.INPUT_DATA
+
+        # ----------------------------------------
+        # SUBSET BY SPECIFIC CLASS (UNDERSAMPLING)
+        n = 0.98
+        to_remove = np.random.choice(
+           df.index,
+           size=int(df.shape[0] * n),
+           replace=False)
+        df = df.drop(to_remove)
 
         # Test for valid input data
         expected_columns = ['36V', '89V', '166V', '190V', 'TagRain']
@@ -122,15 +132,14 @@ class Training:
 
         class PrintDot(keras.callbacks.Callback):
             def on_epoch_end(self, epoch, logs):
-                if epoch % 100 == 0: print('')
+                if epoch % 10 == 0: print('')
                 print('.', end='')
 
-        EPOCHS = 1000
+        EPOCHS = 100
 
         history = model.fit(x_train, y_train,
                             epochs=EPOCHS, validation_split=0.2, batch_size=10,
                             verbose=0, callbacks=[PrintDot()])
-        print(history.history.keys())
 
         # ------------------------------------------------------------------------------
         # Visualize the model's training progress using the stats
@@ -140,74 +149,90 @@ class Training:
         hist.tail()
 
         # ------------------------------------------------------------------------------
-        # Saving the complete model in HDF5:
+        # Saving the complete model in HDF5
         # model.save(self.OUTPUT_DIR + '' + str(self.NN_RUN) + '.h5')
         return model
 
+    def train_retrieval_net(self):
 
-    def autoExecReg(self):
-
-        # Fix random seed for reproducibility:
-        np.random.seed(self.seed)
+        # Fix random seed for reproducibility
+        np.random.seed(self.RANDOM_SEED)
         # ------------------------------------------------------------------------------
 
-        df_orig = pd.read_csv(os.path.join(self.path, self.file), sep=',', decimal='.')
+        # Load dataset:
+        df = self.INPUT_DATA
+        # Test for valid input data
+        expected_columns = ['10V', '10H', '18V', '18H', '36V', '36H', '89V', '89H',
+                            '166V', '166H', '183VH', 'sfccode', 'T2m', 'tcwv', 'PCT36',
+                            'PCT89', '89VH', 'lat', 'sfcprcp']
 
-        df_input = df_orig.loc[:, ['10V', '10H', '18V', '18H', '36V', '36H', '89V', '89H',
-                                   '166V', '166H', '183VH', 'sfccode', 'T2m', 'tcwv', 'PCT36', 'PCT89', '89VH',
-                                   'lat']]
+        if not set(expected_columns).issubset(set(list(df.columns.values))):
+            logging.info(f'Some of the expected columns where not present in the input dataframe.')
+            logging.info(f'\nExpected columns:'
+                         f'\n{expected_columns}\n'
+                         f'Found columns:'
+                         f'\n{list(df.columns.values)}\n'
+                         f'System halt by unmet conditions.')
+            sys.exit(1)
+        # ------------------------------------------------------------------------------
+        # Extracting attributes of interest from the input dataframe
+        df_input = df.loc[:, ['10V', '10H', '18V', '18H', '36V', '36H', '89V', '89H',
+                              '166V', '166H', '183VH', 'sfccode', 'T2m', 'tcwv', 'PCT36',
+                              'PCT89', '89VH', 'lat']]
 
-        colunas = ['10V', '10H', '18V', '18H', '36V', '36H', '89V', '89H',
-                   '166V', '166H', '183VH', 'sfccode', 'T2m', 'tcwv', 'PCT36', 'PCT89', '89VH',
-                   'lat']
+        # Saving attribute column names for future use
+        colunas = list(df_input.columns.values)
 
+        # Creating instance of the data standardization class
         scaler = StandardScaler()
 
-        normed_input = scaler.fit_transform(df_input)
-        df_normed_input = pd.DataFrame(normed_input[:],
-                                       columns=colunas)
-        ancillary = df_normed_input.loc[:, ['183VH', 'sfccode', 'T2m', 'tcwv', 'PCT36', 'PCT89', '89VH',
-                                            'lat']]
-        # regions=df_orig.loc[:,['R1','R2','R3','R4','R5']]
-        # ------------------------------------------------------------------------------
-        # Choosing the number of components:
+        # Standardising input attributes
+        input_x_norm = scaler.fit_transform(df_input)
+        
+        # Converting from vector to pandas dataframe
+        df_normed_input = pd.DataFrame(input_x_norm[:],columns=colunas)
+        
+        # Splitting the ancillary dataframe  
+        ancillary = df_normed_input.loc[:, ['183VH', 'sfccode', 'T2m', 'tcwv', 'PCT36', 'PCT89', '89VH', 'lat']]
 
-        TB1 = df_normed_input.loc[:, ['10V', '10H', '18V', '18H']]
-        TB2 = df_normed_input.loc[:, ['36V', '36H', '89V', '89H', '166V', '166H']]
+        # Splitting attributes to further apply the PCA
+        tb_low = df_normed_input.loc[:, ['10V', '10H', '18V', '18H']]
+        tb_high = df_normed_input.loc[:, ['36V', '36H', '89V', '89H', '166V', '166H']]
 
-        # ------------------------------------------------------------------------------
-        # Verifying the number of components that most contribute:
+        # Calculating the contribution from the attributes to the PCA
         pca = self.PCA
-        pca1 = pca.fit(TB1)
-        plt.plot(np.cumsum(pca1.explained_variance_ratio_))
-        plt.xlabel('Number of components for TB1')
-        plt.ylabel('Cumulative explained variance')
-        plt.savefig(self.path_fig + self.version + 'PCA_TB1.png')
-        # ---
+        pca1 = pca.fit(tb_low)
+
+        # Generating and saving figures
+        self.grph.plot_pca_contrib(pca1, 'low')
+
+        # Applying PCA transform on the low frequency channels
         pca_trans1 = PCA(n_components=2)
-        pca1 = pca_trans1.fit(TB1)
-        TB1_transformed = pca_trans1.transform(TB1)
-        print("original shape:   ", TB1.shape)
-        print("transformed shape:", TB1_transformed.shape)
+        pca1 = pca_trans1.fit(tb_low)
+        tb_low_transformed = pca_trans1.transform(tb_low)
+        logging.info("PCA original shape:   ", tb_low.shape)
+        logging.info("PCA transformed shape:", tb_low_transformed.shape)
         # ------------------------------------------------------------------------------
+
+        # Repeating all steps above for the second PCA: TODO continue from here
         pca = PCA()
-        pca2 = pca.fit(TB2)
+        pca2 = pca.fit(tb_high)
         plt.plot(np.cumsum(pca2.explained_variance_ratio_))
-        plt.xlabel('Number of components for TB2')
+        plt.xlabel('Number of components for tb_high')
         plt.ylabel('Cumulative explained variance')
-        plt.savefig(self.path_fig + self.version + 'PCA_TB2.png')
+        plt.savefig(self.path_fig + self.version + 'PCA_tb_high.png')
         # ---
         pca_trans2 = PCA(n_components=2)
-        pca2 = pca_trans2.fit(TB2)
-        TB2_transformed = pca_trans2.transform(TB2)
-        print("original shape:   ", TB2.shape)
-        print("transformed shape:", TB2_transformed.shape)
+        pca2 = pca_trans2.fit(tb_high)
+        tb_high_transformed = pca_trans2.transform(tb_high)
+        print("original shape:   ", tb_high.shape)
+        print("transformed shape:", tb_high_transformed.shape)
         # ------------------------------------------------------------------------------
         # JOIN THE TREATED VARIABLES IN ONE SINGLE DATASET AGAIN:
 
-        PCA1 = pd.DataFrame(TB1_transformed[:],
+        PCA1 = pd.DataFrame(tb_low_transformed[:],
                             columns=['pca1_1', 'pca_2'])
-        PCA2 = pd.DataFrame(TB2_transformed[:],
+        PCA2 = pd.DataFrame(tb_high_transformed[:],
                             columns=['pca2_1', 'pca2_2'])
 
         dataset = PCA1.join(PCA2, how='right')
@@ -284,10 +309,10 @@ class Training:
 
         class PrintDot(keras.callbacks.Callback):
             def on_epoch_end(self, epoch, logs):
-                if epoch % 100 == 0: print('')
+                if epoch % 10 == 0: print('')
                 print('.', end='')
 
-        EPOCHS = 1000
+        EPOCHS = 100
 
         history = model.fit(
             normed_train_data, y_train,
@@ -399,7 +424,8 @@ class Training:
 
         # ------------------------------------------------------------------------------
         # HISTROGRAM 2D
-        hist2dplot = graphics.plot_hist2d(y_test, test_predictions)
+        hist2dplot = self.grph.plot_hist2d(y_test, test_predictions)
+
 
         # ------------------------------------------------------------------------------
         # Saving model to YAML:

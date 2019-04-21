@@ -188,7 +188,7 @@ def main():
                             RANDOM_SEED=RANDOM_SEED)
 
         screening_model = training.train_screening_net()
-        screening_model.save(OUTPUT_DIR + '' + str(NN_RUN) + '.h5')
+        screening_model.save(f'{OUTPUT_DIR}screeningmodel_{str(NN_RUN)}_{PCTAG}.h5')
     # ,-----------,
     # | Read HDF5 |-----------------------------------------------------------------------------------------------------
     # '-----------'
