@@ -1,0 +1,7 @@
+keras
+tensorflow
+scikit-learn
+matplotlib
+numpy
+pandas
+python-decouple

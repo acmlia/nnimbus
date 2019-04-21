@@ -1,4 +1,5 @@
 import time
+import numpy as np
 
 
 def tic():
@@ -16,3 +17,18 @@ def tac():
 def repeat_to_length(s, wanted):
     return (s * (wanted//len(s) + 1))[:wanted]
 
+
+def keep_df_interval(keepfrom: 0.0, keepto: 1.0, dataframe, target_col: str):
+    """
+    Drop data outside the given interval
+
+    :param keepfrom: minimun range of rain rate in millimeters (float)
+    :param keepto: maximum range of rain rate in millimeters (float)
+    :param dataframe:
+    :param target_col:
+    :return:
+    """
+    keepinterval = np.where((dataframe[target_col] >= keepfrom) &
+                            (dataframe[target_col] <= keepto))
+    result = dataframe.iloc[keepinterval]
+    return result

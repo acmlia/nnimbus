@@ -15,19 +15,25 @@ from core.prediction import Prediction
 from core.validation import Validation
 from core import utils
 
-# ,----------------------,
-# | ENVIRONMENT SETTINGS |----------------------------------------------------------------------------------------------
-# '----------------------'
+# ,------------------------,
+# | .env IMPORTED SETTINGS |--------------------------------------------------------------------------------------------
+# '------------------------'
 """
 Environment settings comes from the external .env file through the use of the python-decouple module.
- 
 """
 # Tag with the PC name (please avoid using special characteres)
 PCTAG = config('PCTAG', default='default')
 
-# Path for the CSV's (input and output):
+# Path for the CSV files
 IN_CSV_PATH = config('IN_CSV_PATH', default='')
+
+# Name of the CSV file
 IN_CSV_NAME = config('IN_CSV_NAME', default='')
+
+# Path for the directory that contains the CSV files that will be used in subset/concatenation steps
+IN_CSV_LIST = config('IN_CSV_LIST', default='')
+
+# Directory where the program should save its outputs
 OUTPUT_DIR = config('OUTPUT_DIR', default='')
 
 # Final training data saving name
@@ -40,8 +46,12 @@ RANDOM_SEED = config('RANDOM_SEED', default=0, cast=int)
 LAT_LIMIT = config('LAT_LIMIT', default=0, cast=Csv(float))
 LON_LIMIT = config('LON_LIMIT', default=0, cast=Csv(float))
 
-# Minimal threshold of rain rate:
-THRESHOLD_RAIN = 0.1
+# Minimal threshold of rain rate
+THRESHOLD_RAIN = config('THRESHOLD_RAIN', default=0, cast=float)
+
+# ,--------------------------,
+# | NNIMBUS WORKFLOW OPTIONS |------------------------------------------------------------------------------------------
+# '--------------------------'
 
 # NNIMBUS logs
 LOGFILE = OUTPUT_DIR+f'nnimbus_{PCTAG}.log'
@@ -68,17 +78,13 @@ else:
         f.seek(0)
         f.write(f'NN_Run #{NN_RUN}\n')
 
-# ,--------------------------,
-# | NNIMBUS WORKFLOW OPTIONS |------------------------------------------------------------------------------------------
-# '--------------------------'
-
 workflow = {
+    'read_csv': True,
     'read_raw_csv': False,
-    'read_alternative_csv': False,
     'extract_region': False,
     'concatenate_csv_list_to_df': False,
     'compute_additional_variables': False,
-    'training': False,
+    'training': True,
     'pre_process_HDF5': False,
     'prediction': False,
     'validation': False,
@@ -104,6 +110,7 @@ def main():
     preprocess = PreProcess()
     prediction = Prediction()
     validation = Validation()
+
     # ,----------------------------,
     # | SAVING MODEL CONFIG TO LOG |------------------------------------------------------------------------------------
     # '----------------------------'
@@ -121,19 +128,19 @@ def main():
                  f'LOG_FILE = {os.path.abspath(LOGFILE)}\n'
                  f'RANDOM_SEED = {RANDOM_SEED}\n')
 
+    # ,------------------,
+    # | Reading CSV Data |----------------------------------------------------------------------------------------------
+    # '------------------'
+    if workflow['read_csv']:
+        logging.info(f'Reading input CSV data')
+        training_data = preprocess.load_csv(IN_CSV_PATH, IN_CSV_NAME)
+
     # ,----------------------,
     # | Reading raw CSV Data |------------------------------------------------------------------------------------------
     # '----------------------'
     if workflow['read_raw_csv']:
         logging.info(f'Reading RAW Randel CSV data')
-        training_data = preprocess.load_raw_csv(IN_CSV_PATH, 'CSU.LSWG.201409.bin.csv')
-
-    # ,------------------------------,
-    # | Reading alternative CSV Data |----------------------------------------------------------------------------------
-    # '------------------------------'
-    if workflow['read_alternative_csv']:
-        logging.info(f'Reading alternative CSV data')
-        training_data = preprocess.load_csv(IN_CSV_PATH, 'subset_CSU.LSWG.201409.csv')
+        training_data = preprocess.load_raw_csv(IN_CSV_PATH, IN_CSV_NAME)
 
     # ,------------------------------------------,
     # | Extracting region of interest by LAT LON |----------------------------------------------------------------------
@@ -147,7 +154,7 @@ def main():
                                                    lon_max=LAT_LIMIT[1])
 
     # ,------------------------------,
-    # | Concatenating CSV dataframes |----------------------------------------------------------------------
+    # | Concatenating CSV dataframes |----------------------------------------------------------------------------------
     # '------------------------------'
     if workflow['concatenate_csv_list_to_df']:
         logging.info(f'Reading CSV to generate a list of dataframes.')
@@ -174,15 +181,14 @@ def main():
 
         from core.training import Training
 
-        retrieval = Training(random_seed=7,
-                             version='NN'+str(NN_RUN),
-                             csv_entry=IN_CSV_NAME,
-                             csv_path=IN_CSV_PATH,
-                             figure_path=OUTPUT_DIR + 'ann_training/',
-                             model_out_path=OUTPUT_DIR + 'ann_training/',
-                             model_out_name=f'final_ann_{NN_RUN}')
-        retrieval.status()
-        retrieval.autoExecReg()
+        training = Training(INPUT_DATA=training_data,
+                            PCTAG=PCTAG,
+                            NN_RUN=NN_RUN,
+                            OUTPUT_DIR=OUTPUT_DIR,
+                            RANDOM_SEED=RANDOM_SEED)
+
+        screening_model = training.train_screening_net()
+        screening_model.save(OUTPUT_DIR + '' + str(NN_RUN) + '.h5')
     # ,-----------,
     # | Read HDF5 |-----------------------------------------------------------------------------------------------------
     # '-----------'

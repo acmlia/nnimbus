@@ -1,98 +1,50 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+import sys
 
 import logging
 import pandas as pd
 import numpy as np
 
-import matplotlib.pyplot as plt
+from core import utils
+from core import graphics
 
 from sklearn.preprocessing import Normalizer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-
 from sklearn.decomposition import PCA
 
-
-import tensorflow as tf
 from tensorflow import keras
 
 from keras.layers import GaussianNoise
-
 from keras.models import Sequential
 from keras.layers import Dense
-
-
-print('TF version ' + tf.__version__)
-
-
-def mean_squared_error(y_test, y_pred):
-    return K.mean(K.square(y_pred - y_test), axis=-1)
-
-
-# ------------------------------------------------------------------------------
 
 
 class Training:
     """
     This module is intended to automate the TensorFlow Neural Network training.
+
     """
+    INPUT_DATA = pd.DataFrame()
+    NN_RUN = 0
+    OUTPUT_DIR = 'output/'
+    RANDOM_SEED = 0
+
     PCA = PCA()
-    seed = 0
-    version = 0
-    vernick = ''
-    file = ''
-    path = ''
-    fig_title = ''
-    path_fig = ''
-    mod_out_pth = ''
-    mod_out_name = ''
 
-    def __init__(self, random_seed=0,
+    def __init__(self, INPUT_DATA=None, PCTAG='notag', NN_RUN=0, OUTPUT_DIR='output/', RANDOM_SEED=0):
 
-                 version='',
-                 csv_entry='',
-                 csv_path='',
-                 figure_path='',
-                 model_out_path='',
-                 model_out_name=''):
+        self.INPUT_DATA = INPUT_DATA
+        self.PCTAG = PCTAG
+        self.NN_RUN = NN_RUN
+        self.OUTPUT_DIR = OUTPUT_DIR
+        self.RANDOM_SEED = RANDOM_SEED
 
-        self.seed = random_seed
-        self.version = version
-        self.file = csv_entry
-        self.path = csv_path
-        self.path_fig = figure_path
-        self.fig_title = version
-        self.mod_out_pth = model_out_path
-        self.mod_out_name = model_out_name
-
-    def status(self):
-        """
-        Shows the settings of the main parameters necessary to process the algorithm.
-        """
-        logging.info(f'{__name__} OK')
-        pass
-
-    @staticmethod
-    def keep_interval(keepfrom: 0.0, keepto: 1.0, dataframe, target_col: str):
-        """
-        Drop data outside the given interval
-
-        :param keepfrom: minimun range of rain rate in millimeters (float)
-        :param keepto: maximum range of rain rate in millimeters (float)
-        :param dataframe:
-        :param target_col:
-        :return:
-        """
-        keepinterval = np.where((dataframe[target_col] >= keepfrom) &
-                                (dataframe[target_col] <= keepto))
-        result = dataframe.iloc[keepinterval]
-        return result
-
-    # -------------------------------------------------------------------------
-    # BUILD MODELS DEFINITIONS : CLAS = CLASSIFICATION and REG = REGRESSION
-    # -------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
+    # BUILD NN MODELS - DEFINITIONS : CLAS = CLASSIFICATION and REG = REGRESSION
+    # --------------------------------------------------------------------------
     @staticmethod
     def build_class_model():
         """
@@ -124,17 +76,29 @@ class Training:
                       metrics=['mean_absolute_error', 'mean_squared_error'])
         return model
 
-    # -------------------------------------------------------------------------
-    # EXECUTION OF READING INPUT ATTRIBUTES, SCALING, PCA, SPLIT AND RUN MODEL!
-    # -------------------------------------------------------------------------
+    def train_screening_net(self):
+        """
 
-    def autoExecClass(self):
-
+        :return:
+        """
         # Fix random seed for reproducibility:
-        np.random.seed(self.seed)
+        np.random.seed(self.RANDOM_SEED)
 
         # Load dataset:
-        df = pd.read_csv(os.path.join(self.path, self.file), sep=',', decimal='.')
+        df = self.INPUT_DATA
+
+        # Test for valid input data
+        expected_columns = ['36V', '89V', '166V', '190V', 'TagRain']
+
+        if not set(expected_columns).issubset(set(list(df.columns.values))):
+            logging.info(f'Some of the expected columns where not present in the input dataframe.')
+            logging.info(f'\nExpected columns:'
+                         f'\n{expected_columns}\n'
+                         f'Found columns:'
+                         f'\n{list(df.columns.values)}\n'
+                         f'System halt by unmet conditions.')
+            sys.exit(1)
+
         x, y = df.loc[:, ['36V', '89V', '166V', '190V']], df.loc[:, ['TagRain']]
 
         x_arr = np.asanyarray(x)
@@ -142,14 +106,13 @@ class Training:
         y_arr = np.ravel(y_arr)
 
         # Scaling the input paramaters:
-        #       scaler_min_max = MinMaxScaler()
         norm_sc = Normalizer()
         x_normalized = norm_sc.fit_transform(x_arr)
 
         # Split the dataset in test and train samples:
         x_train, x_test, y_train, y_test = train_test_split(x_normalized,
                                                             y_arr, test_size=0.10,
-                                                            random_state=101)
+                                                            random_state=self.RANDOM_SEED)
 
         # Create the instance for KerasRegressor:
         model = self.build_class_model()
@@ -172,28 +135,15 @@ class Training:
         # ------------------------------------------------------------------------------
         # Visualize the model's training progress using the stats
         # stored in the history object.
-
         hist = pd.DataFrame(history.history)
         hist['epoch'] = history.epoch
         hist.tail()
+
         # ------------------------------------------------------------------------------
-        # Saving model to YAML:
-
-        #        model_yaml = model.to_yaml()
-        #        with open(self.mod_out_pth + self.mod_out_name + '.yaml', 'w') as yaml_file:
-        #            yaml_file.write(model_yaml)
-        #
-        #        # serialize weights to HDF5
-        #        model.save_weights(self.mod_out_pth + self.mod_out_name + '.h5')
-        #        print("Saved model to disk")
-        #        tac()
-
         # Saving the complete model in HDF5:
-        model.save(self.mod_out_pth + self.mod_out_name + '.h5')
+        # model.save(self.OUTPUT_DIR + '' + str(self.NN_RUN) + '.h5')
+        return model
 
-    # ------------------------------------------------------------------------------
-    #
-    # ------------------------------------------------------------------------------
 
     def autoExecReg(self):
 
@@ -231,7 +181,7 @@ class Training:
         pca1 = pca.fit(TB1)
         plt.plot(np.cumsum(pca1.explained_variance_ratio_))
         plt.xlabel('Number of components for TB1')
-        plt.ylabel('Cumulative explained variance');
+        plt.ylabel('Cumulative explained variance')
         plt.savefig(self.path_fig + self.version + 'PCA_TB1.png')
         # ---
         pca_trans1 = PCA(n_components=2)
@@ -244,7 +194,7 @@ class Training:
         pca2 = pca.fit(TB2)
         plt.plot(np.cumsum(pca2.explained_variance_ratio_))
         plt.xlabel('Number of components for TB2')
-        plt.ylabel('Cumulative explained variance');
+        plt.ylabel('Cumulative explained variance')
         plt.savefig(self.path_fig + self.version + 'PCA_TB2.png')
         # ---
         pca_trans2 = PCA(n_components=2)
@@ -265,7 +215,7 @@ class Training:
         dataset = dataset.join(df_orig.loc[:, ['sfcprcp']], how='right')
         # ------------------------------------------------------------------------------
 
-        dataset = self.keep_interval(0.2, 60, dataset, 'sfcprcp')
+        dataset = utils.keep_df_interval(0.2, 60, dataset, 'sfcprcp')
 
         # ----------------------------------------
         # SUBSET BY SPECIFIC CLASS (UNDERSAMPLING)
@@ -449,20 +399,7 @@ class Training:
 
         # ------------------------------------------------------------------------------
         # HISTROGRAM 2D
-
-        plt.hist2d(y_test, test_predictions, cmin=1, bins=(50, 50), cmap=plt.cm.jet,
-                   range=np.array([(0.2, 110), (0.2, 110)]))
-        plt.axis('equal')
-        plt.axis('square')
-        plt.plot([0, 100], [0, 100], ls="--", c=".3")
-        plt.xlim([0, max(y_test)])
-        plt.ylim([0, max(y_test)])
-        plt.colorbar()
-        plt.xlabel("Observed rain rate (mm/h) - Training")
-        plt.ylabel("Predicted rain rate (mm/h) - Training")
-        fig_name = self.fig_title + "_hist2D.png"
-        plt.savefig(self.path_fig + fig_name)
-        plt.clf()
+        hist2dplot = graphics.plot_hist2d(y_test, test_predictions)
 
         # ------------------------------------------------------------------------------
         # Saving model to YAML:
@@ -478,64 +415,3 @@ class Training:
         # Saving the complete model in HDF5:
         model.save(self.mod_out_pth + self.mod_out_name + '_tf.h5')
 
-    # -------------------------------------------------------------------------
-    # FUNCTIONS TO MAKE PLOTS ABOUT TRAINING:
-    # -------------------------------------------------------------------------
-    def plot_history(self, history):
-        hist = pd.DataFrame(history.history)
-        hist['epoch'] = history.epoch
-
-        plt.xlabel('Epoch')
-        plt.ylabel('Mean Abs Error [sfcprcp]')
-        plt.plot(hist['epoch'], hist['mean_absolute_error'],
-                 label='Train Error')
-        plt.plot(hist['epoch'], hist['val_mean_absolute_error'],
-                 label='Val Error')
-        ylim_max = hist.val_mean_absolute_error.max() + 10
-        plt.ylim([0, ylim_max])
-        plt.legend()
-
-        plt.figure()
-        plt.xlabel('Epoch')
-        plt.ylabel('Mean Square Error [$scfprcp^2$]')
-        plt.plot(hist['epoch'], hist['mean_squared_error'],
-                 label='Train Error')
-        plt.plot(hist['epoch'], hist['val_mean_squared_error'],
-                 label='Val Error')
-        ylim_max = hist.val_mean_squared_error.max() + 10
-        plt.ylim([0, ylim_max])
-        plt.legend()
-        # plt.show()
-        fig_name = self.fig_title + "_error_per_epochs_history.png"
-        plt.savefig(self.path_fig + fig_name)
-
-    def plot_history_EarlyStopping(self, history):
-        hist = pd.DataFrame(history.history)
-        hist['epoch'] = history.epoch
-
-        plt.figure()
-        plt.xlabel('Epoch')
-        plt.ylabel('Mean Abs Error [sfcprcp]')
-        plt.plot(hist['epoch'], hist['mean_absolute_error'],
-                 label='Train Error')
-        plt.plot(hist['epoch'], hist['val_mean_absolute_error'],
-                 label='Val Error')
-        ylim_max = hist.val_mean_absolute_error.max() + 10
-        plt.ylim([0, ylim_max])
-
-        plt.legend()
-
-        plt.figure()
-        plt.xlabel('Epoch')
-        plt.ylabel('Mean Square Error [$sfcprcp^2$]')
-        plt.plot(hist['epoch'], hist['mean_squared_error'],
-                 label='Train Error')
-        plt.plot(hist['epoch'], hist['val_mean_squared_error'],
-                 label='Val Error')
-        ylim_max = hist.val_mean_squared_error.max() + 10
-        plt.ylim([0, ylim_max])
-
-        plt.legend()
-
-        fig_name = self.fig_title + "_error_per_epochs_EarlyStopping.png"
-        plt.savefig(self.path_fig + fig_name)
