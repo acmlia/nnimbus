@@ -86,16 +86,16 @@ class Training:
         # Fix random seed for reproducibility:
         np.random.seed(self.RANDOM_SEED)
 
-        # Load dataset:
         df = self.INPUT_DATA
 
-        # ----------------------------------------
         # SUBSET BY SPECIFIC CLASS (UNDERSAMPLING)
         n = 0.98
+
         to_remove = np.random.choice(
-           df.index,
-           size=int(df.shape[0] * n),
-           replace=False)
+            df.index,
+            size=int(df.shape[0] * n),
+            replace=False)
+
         df = df.drop(to_remove)
 
         # Test for valid input data
@@ -355,14 +355,5 @@ class Training:
         # Plot & save : hist2d
         self.grph.plot_hist2d(y_test, test_predictions)
 
-        # Saving model to YAML:
-        model_yaml = model.to_yaml()
-        with open(f'{self.OUTPUT_DIR}{self.PCTAG}v{self.NN_RUN}.yaml', 'w') as yaml_file:
-            yaml_file.write(model_yaml)
-
-        # serialize weights to HDF5
-        model.save_weights(f'{self.OUTPUT_DIR}{self.PCTAG}v{self.NN_RUN}_weights.h5')
-
-        # Saving the complete model in HDF5:
-        model.save(f'{self.OUTPUT_DIR}{self.PCTAG}v{self.NN_RUN}.h5')
+        return model
 

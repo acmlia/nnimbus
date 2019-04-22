@@ -1,9 +1,9 @@
-21/04/2019 05:06:14 - > No version file found in "/mnt/AC9AF51E9AF4E5AC/repos/nnimbus/output/nnimbus_ntbk14.ver"
+21/04/2019 19:27:54 - > No version file found in "/mnt/AC9AF51E9AF4E5AC/repos/nnimbus/output/nnimbus_ntbk14.ver"
 > Tagging this execution as version: #0
-21/04/2019 05:06:14 - ,--------------------------------------,
-21/04/2019 05:06:14 - | Starting NNIMBUS @ ntbk14 # NN_RUN:0 |
-21/04/2019 05:06:14 - '--------------------------------------'
-21/04/2019 05:06:14 - User-defined workflow:
+21/04/2019 19:27:54 - ,--------------------------------------,
+21/04/2019 19:27:54 - | Starting NNIMBUS @ ntbk14 # NN_RUN:0 |
+21/04/2019 19:27:54 - '--------------------------------------'
+21/04/2019 19:27:54 - User-defined workflow:
 
 {'compute_additional_variables': False,
  'concatenate_csv_list_to_df': False,
@@ -16,7 +16,7 @@
  'training': True,
  'validation': False}
 
-21/04/2019 05:06:14 - Environment variables:
+21/04/2019 19:27:54 - Environment variables:
 
 PCTAG = ntbk14
 IN_CSV_PATH = /mnt/AC9AF51E9AF4E5AC/A1ML/phd_datasets/
@@ -30,108 +30,18 @@ VERSION_FILE = /mnt/AC9AF51E9AF4E5AC/repos/nnimbus/output/nnimbus_ntbk14.ver
 LOG_FILE = /mnt/AC9AF51E9AF4E5AC/repos/nnimbus/output/nnimbus_ntbk14.log
 RANDOM_SEED = 7
 
-21/04/2019 05:06:14 - Reading input CSV data
-21/04/2019 05:06:16 - yearly_br_underc1_hot_0956.csv successfully loaded into a dataframe in 0h:0m:2s
-21/04/2019 05:06:16 - > Importing training modules, this may take a while...
-21/04/2019 05:06:16 - CACHEDIR=/home/dvdgmf/.cache/matplotlib
-21/04/2019 05:06:16 - Using fontManager instance from /home/dvdgmf/.cache/matplotlib/fontlist-v300.json
-21/04/2019 05:06:16 - Loaded backend TkAgg version unknown.
-21/04/2019 05:06:18 - From /usr/local/lib/python3.6/dist-packages/tensorflow/python/framework/op_def_library.py:263: colocate_with (from tensorflow.python.framework.ops) is deprecated and will be removed in a future version.
+21/04/2019 19:27:54 - Reading input CSV data
+21/04/2019 19:27:56 - yearly_br_underc1_hot_0956.csv successfully loaded into a dataframe in 0h:0m:2s
+21/04/2019 19:27:56 - > Importing training modules, this may take a while...
+21/04/2019 19:27:57 - CACHEDIR=/home/dvdgmf/.cache/matplotlib
+21/04/2019 19:27:57 - Using fontManager instance from /home/dvdgmf/.cache/matplotlib/fontlist-v300.json
+21/04/2019 19:27:57 - Loaded backend TkAgg version unknown.
+21/04/2019 19:27:58 - From /usr/local/lib/python3.6/dist-packages/tensorflow/python/framework/op_def_library.py:263: colocate_with (from tensorflow.python.framework.ops) is deprecated and will be removed in a future version.
 Instructions for updating:
 Colocations handled automatically by placer.
-21/04/2019 05:06:18 - From /usr/local/lib/python3.6/dist-packages/tensorflow/python/ops/math_ops.py:3066: to_int32 (from tensorflow.python.ops.math_ops) is deprecated and will be removed in a future version.
+21/04/2019 19:27:58 - From /usr/local/lib/python3.6/dist-packages/tensorflow/python/ops/math_ops.py:3066: to_int32 (from tensorflow.python.ops.math_ops) is deprecated and will be removed in a future version.
 Instructions for updating:
 Use tf.cast instead.
-21/04/2019 05:09:05 - ,---------------------------------------,
-21/04/2019 05:09:05 - | Elapsed execution time: 0h : 2m : 51s |
-21/04/2019 05:09:05 - '---------------------------------------'
-21/04/2019 05:13:45 - ,--------------------------------------,
-21/04/2019 05:13:45 - | Starting NNIMBUS @ ntbk14 # NN_RUN:1 |
-21/04/2019 05:13:45 - '--------------------------------------'
-21/04/2019 05:13:45 - User-defined workflow:
-
-{'compute_additional_variables': False,
- 'concatenate_csv_list_to_df': False,
- 'extract_region': False,
- 'pre_process_HDF5': False,
- 'prediction': False,
- 'read_csv': True,
- 'read_raw_csv': False,
- 'save_data': False,
- 'training': True,
- 'validation': False}
-
-21/04/2019 05:13:45 - Environment variables:
-
-PCTAG = ntbk14
-IN_CSV_PATH = /mnt/AC9AF51E9AF4E5AC/A1ML/phd_datasets/
-IN_CSV_NAME = yearly_br_underc1_hot_0956.csv
-OUTPUT_DIR = output/
-TRNGCSV_TO_SAVE = train_data_11m.csv
-LAT_LIMIT = [-34.0, 6.0]
-LON_LIMIT = [-75.0, -35.0]
-THRESHOLD_RAIN = 0.1
-VERSION_FILE = /mnt/AC9AF51E9AF4E5AC/repos/nnimbus/output/nnimbus_ntbk14.ver
-LOG_FILE = /mnt/AC9AF51E9AF4E5AC/repos/nnimbus/output/nnimbus_ntbk14.log
-RANDOM_SEED = 7
-
-21/04/2019 05:13:45 - Reading input CSV data
-21/04/2019 05:13:48 - yearly_br_underc1_hot_0956.csv successfully loaded into a dataframe in 0h:0m:2s
-21/04/2019 05:13:48 - > Importing training modules, this may take a while...
-21/04/2019 05:13:48 - CACHEDIR=/home/dvdgmf/.cache/matplotlib
-21/04/2019 05:13:48 - Using fontManager instance from /home/dvdgmf/.cache/matplotlib/fontlist-v300.json
-21/04/2019 05:13:48 - Loaded backend TkAgg version unknown.
-21/04/2019 05:13:49 - From /usr/local/lib/python3.6/dist-packages/tensorflow/python/framework/op_def_library.py:263: colocate_with (from tensorflow.python.framework.ops) is deprecated and will be removed in a future version.
-Instructions for updating:
-Colocations handled automatically by placer.
-21/04/2019 05:13:50 - From /usr/local/lib/python3.6/dist-packages/tensorflow/python/ops/math_ops.py:3066: to_int32 (from tensorflow.python.ops.math_ops) is deprecated and will be removed in a future version.
-Instructions for updating:
-Use tf.cast instead.
-21/04/2019 05:14:31 - ,---------------------------------------,
-21/04/2019 05:14:31 - | Elapsed execution time: 0h : 0m : 46s |
-21/04/2019 05:14:31 - '---------------------------------------'
-21/04/2019 05:19:53 - ,--------------------------------------,
-21/04/2019 05:19:53 - | Starting NNIMBUS @ ntbk14 # NN_RUN:2 |
-21/04/2019 05:19:53 - '--------------------------------------'
-21/04/2019 05:19:53 - User-defined workflow:
-
-{'compute_additional_variables': False,
- 'concatenate_csv_list_to_df': False,
- 'extract_region': False,
- 'pre_process_HDF5': False,
- 'prediction': False,
- 'read_csv': True,
- 'read_raw_csv': False,
- 'save_data': False,
- 'training': True,
- 'validation': False}
-
-21/04/2019 05:19:53 - Environment variables:
-
-PCTAG = ntbk14
-IN_CSV_PATH = /mnt/AC9AF51E9AF4E5AC/A1ML/phd_datasets/
-IN_CSV_NAME = yearly_br_underc1_hot_0956.csv
-OUTPUT_DIR = output/
-TRNGCSV_TO_SAVE = train_data_11m.csv
-LAT_LIMIT = [-34.0, 6.0]
-LON_LIMIT = [-75.0, -35.0]
-THRESHOLD_RAIN = 0.1
-VERSION_FILE = /mnt/AC9AF51E9AF4E5AC/repos/nnimbus/output/nnimbus_ntbk14.ver
-LOG_FILE = /mnt/AC9AF51E9AF4E5AC/repos/nnimbus/output/nnimbus_ntbk14.log
-RANDOM_SEED = 7
-
-21/04/2019 05:19:53 - Reading input CSV data
-21/04/2019 05:19:55 - yearly_br_underc1_hot_0956.csv successfully loaded into a dataframe in 0h:0m:2s
-21/04/2019 05:19:55 - > Importing training modules, this may take a while...
-21/04/2019 05:19:55 - CACHEDIR=/home/dvdgmf/.cache/matplotlib
-21/04/2019 05:19:55 - Using fontManager instance from /home/dvdgmf/.cache/matplotlib/fontlist-v300.json
-21/04/2019 05:19:55 - Loaded backend TkAgg version unknown.
-21/04/2019 05:19:57 - From /usr/local/lib/python3.6/dist-packages/tensorflow/python/framework/op_def_library.py:263: colocate_with (from tensorflow.python.framework.ops) is deprecated and will be removed in a future version.
-Instructions for updating:
-Colocations handled automatically by placer.
-21/04/2019 05:19:57 - From /usr/local/lib/python3.6/dist-packages/tensorflow/python/ops/math_ops.py:3066: to_int32 (from tensorflow.python.ops.math_ops) is deprecated and will be removed in a future version.
-Instructions for updating:
-Use tf.cast instead.
-21/04/2019 05:20:38 - ,---------------------------------------,
-21/04/2019 05:20:38 - | Elapsed execution time: 0h : 0m : 45s |
-21/04/2019 05:20:38 - '---------------------------------------'
+21/04/2019 19:28:41 - ,---------------------------------------,
+21/04/2019 19:28:41 - | Elapsed execution time: 0h : 0m : 47s |
+21/04/2019 19:28:41 - '---------------------------------------'

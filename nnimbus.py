@@ -10,10 +10,11 @@ import os
 from pprint import pformat
 from decouple import config
 from decouple import Csv
+
+from core import utils
 from core.pre_process import PreProcess
 from core.prediction import Prediction
-from core.validation import Validation
-from core import utils
+
 
 # ,------------------------,
 # | .env IMPORTED SETTINGS |--------------------------------------------------------------------------------------------
@@ -78,13 +79,17 @@ else:
         f.seek(0)
         f.write(f'NN_Run #{NN_RUN}\n')
 
+FILENAMETAG = f'{OUTPUT_DIR}{PCTAG}v{NN_RUN}'
+
 workflow = {
     'read_csv': True,
     'read_raw_csv': False,
     'extract_region': False,
     'concatenate_csv_list_to_df': False,
     'compute_additional_variables': False,
-    'training': True,
+    'load_training': True,
+    'train_screening': True,   # requires load_training = True!
+    'train_retrieval': False,  # requires load_training = True!
     'pre_process_HDF5': False,
     'prediction': False,
     'validation': False,
@@ -109,7 +114,6 @@ def main():
     # Initializing core classes
     preprocess = PreProcess()
     prediction = Prediction()
-    validation = Validation()
 
     # ,----------------------------,
     # | SAVING MODEL CONFIG TO LOG |------------------------------------------------------------------------------------
@@ -171,10 +175,10 @@ def main():
         training_data = preprocess.compute_additional_input_vars(training_data)
         logging.info(f'Output dataset columns: {list(training_data.columns.values)}')
 
-    # ,----------,
-    # | Training |------------------------------------------------------------------------------------------------------
-    # '----------'
-    if workflow['training']:
+    # ,-------------------------,
+    # | Load training libraries |---------------------------------------------------------------------------------------
+    # '-------------------------'
+    if workflow['load_training']:
         training_import_warning = f'> Importing training modules, this may take a while...'
         print(training_import_warning)
         logging.info(training_import_warning)
@@ -187,8 +191,52 @@ def main():
                             OUTPUT_DIR=OUTPUT_DIR,
                             RANDOM_SEED=RANDOM_SEED)
 
+        training_done_warning = f'> Training modules loaded.'
+        print(training_done_warning)
+        logging.info(training_done_warning)
+    # ,---------------------,
+    # | Training: Screening |-------------------------------------------------------------------------------------------
+    # '---------------------'
+    if workflow['train_screening']:
+        screening_warning = f'> Training screening model...'
+        print(screening_warning)
+        logging.info(screening_warning)
+
         screening_model = training.train_screening_net()
-        screening_model.save(f'{OUTPUT_DIR}screeningmodel_{str(NN_RUN)}_{PCTAG}.h5')
+        # Saving the complete model in HDF5:
+        screening_model_name = f'{FILENAMETAG}_screeningmodel.h5'
+        screening_model.save(screening_model_name)
+
+        screening_done = f'> Screening model training completed.\n ' \
+            f'Output model saved as: {screening_model_name}'
+        print(screening_done)
+        logging.info(screening_done)
+    # ,---------------------,
+    # | Training: Retrieval |-------------------------------------------------------------------------------------------
+    # '---------------------'
+    if workflow['train_retrieval']:
+        retrieval_warning = f'> Training retrieval model...'
+        print(retrieval_warning)
+        logging.info(retrieval_warning)
+
+        retrieval_model = training.train_retrieval_net()
+
+        # Saving model to YAML:
+        model_yaml = retrieval_model.to_yaml()
+        with open(f'{FILENAMETAG}.yaml', 'w') as yaml_file:
+            yaml_file.write(model_yaml)
+
+        # serialize weights to HDF5
+        retrieval_model.save_weights(f'{FILENAMETAG}_retrieval_weights.h5')
+
+        # Saving the complete model in HDF5:
+        retrieval_model.save(f'{FILENAMETAG}_retrieval_model.h5')
+
+        retrieval_done = f'> Screening model training completed.\n ' \
+            f'Output files saved at: {os.path.abspath(OUTPUT_DIR)}/'
+        print(retrieval_done)
+        logging.info(retrieval_done)
+
     # ,-----------,
     # | Read HDF5 |-----------------------------------------------------------------------------------------------------
     # '-----------'
