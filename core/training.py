@@ -30,19 +30,12 @@ class Training:
     This module is intended to automate the TensorFlow Neural Network training.
 
     """
-    INPUT_DATA = pd.DataFrame()
-    NN_RUN = 0
-    OUTPUT_DIR = 'output/'
-    RANDOM_SEED = 0
-
-    def __init__(self, INPUT_DATA=None, PCTAG='notag', NN_RUN=0, OUTPUT_DIR='output/', RANDOM_SEED=0):
+    def __init__(self, INPUT_DATA=None, RANDOM_SEED=0, FILENAMETAG='output/'):
 
         self.INPUT_DATA = INPUT_DATA
-        self.PCTAG = PCTAG
-        self.NN_RUN = NN_RUN
-        self.OUTPUT_DIR = OUTPUT_DIR
         self.RANDOM_SEED = RANDOM_SEED
-        self.grph = g.Graphics(self.PCTAG, self.NN_RUN, self.OUTPUT_DIR)
+        self.FILENAMETAG = FILENAMETAG
+        self.grph = g.Graphics(FILENAMETAG)
 
     # --------------------------------------------------------------------------
     # BUILD NN MODELS - DEFINITIONS : CLAS = CLASSIFICATION and REG = REGRESSION
@@ -211,8 +204,8 @@ class Training:
         pca_trans1 = PCA(n_components=2)
         pca_trans1.fit(tb_low)
         tb_low_transformed = pca_trans1.transform(tb_low)
-        logging.info("PCA original shape:   ", tb_low.shape)
-        logging.info("PCA transformed shape:", tb_low_transformed.shape)
+        # logging.info("PCA original shape:   ", tb_low.shape)
+        # logging.info("PCA transformed shape:", tb_low_transformed.shape)
 
         # Repeating the above steps for the second PCA
         pca = PCA()
@@ -225,8 +218,8 @@ class Training:
         pca_trans2 = PCA(n_components=2)
         pca_trans2.fit(tb_high)
         tb_high_transformed = pca_trans2.transform(tb_high)
-        logging.info("original shape:   ", tb_high.shape)
-        logging.info("transformed shape:", tb_high_transformed.shape)
+        # logging.info("original shape:   ", tb_high.shape)
+        # logging.info("transformed shape:", tb_high_transformed.shape)
 
         # Join both PCAs back into one sigle dataset
         PCA1 = pd.DataFrame(tb_low_transformed[:], columns=['pca1_1', 'pca_2'])
@@ -267,6 +260,7 @@ class Training:
         # Inspect the model:
         # Use the .summary method to print a simple description of the model
         model.summary()
+        logging.info(model.summary())
 
         # Display training progress by printing a single dot for each completed epoch
         class PrintDot(keras.callbacks.Callback):
@@ -336,11 +330,11 @@ class Training:
         logging.info(f'Validation statistics:\n\n{my_scores}\n')
 
         # Saving scores dictionary
-        with open(f'{self.OUTPUT_DIR}{self.PCTAG}v{self.NN_RUN}_continuous_scores_TEST_TRAIN.txt', 'w') as myfile:
+        with open(f'{self.FILENAMETAG}_continuous_scores_TEST_TRAIN.txt', 'w') as myfile:
             myfile.write(my_scores)
 
         logging.info(f'Retrieval validation statistics file saved at:\n\n'
-                     f'{self.OUTPUT_DIR}{self.PCTAG}v{self.NN_RUN}_continuous_scores_TEST_TRAIN.txt')
+                     f'{self.FILENAMETAG}_continuous_scores_TEST_TRAIN.txt')
 
         # Plot & save : scatter test vs pred
         self.grph.plot_scatter_test_vs_pred(y_test, test_predictions)

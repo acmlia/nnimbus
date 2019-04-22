@@ -9,18 +9,13 @@ import numpy as np
 
 class Graphics:
 
-    PCTAG = ''
-    NN_RUN = 0
-    OUTPUT_DIR = 'output/'
+    FILENAMETAG = 'output/'
 
-    def __init__(self, PCTAG='notag', NN_RUN=0, OUTPUT_DIR='output/'):
-
-        self.PCTAG = PCTAG
-        self.NN_RUN = NN_RUN
-        self.OUTPUT_DIR = OUTPUT_DIR
+    def __init__(self, FILENAMETAG='notag'):
+        self.FILENAMETAG = FILENAMETAG
 
     def _makename(self, fig_name):
-        name = f'{self.OUTPUT_DIR}{self.PCTAG}v{self.NN_RUN}_{fig_name}.png'
+        name = f'{self.FILENAMETAG}_{fig_name}.png'
         return name
 
     def plot_pca_contrib(self, pca, lowhi):

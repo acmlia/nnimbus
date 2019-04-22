@@ -79,21 +79,26 @@ else:
         f.seek(0)
         f.write(f'NN_Run #{NN_RUN}\n')
 
-FILENAMETAG = f'{OUTPUT_DIR}{PCTAG}v{NN_RUN}'
+
+os.mkdir(f'{OUTPUT_DIR}{PCTAG}_v{NN_RUN}')
+
+FILENAMETAG = f'{OUTPUT_DIR}/{PCTAG}_v{NN_RUN}/{PCTAG}_v{NN_RUN}'
 
 workflow = {
-    'read_csv': True,
-    'read_raw_csv': False,
-    'extract_region': False,
-    'concatenate_csv_list_to_df': False,
-    'compute_additional_variables': False,
-    'load_training': True,
-    'train_screening': True,   # requires load_training = True!
-    'train_retrieval': False,  # requires load_training = True!
-    'pre_process_HDF5': False,
-    'prediction': False,
-    'validation': False,
-    'save_data': False
+    '00_read_csv': True,
+    '01_read_raw_csv': False,
+    '02_extract_region': False,
+    '03_concatenate_csv_list_to_df': False,
+    '04_compute_additional_variables': False,
+    '05_load_training': False,
+    '06_train_screening': False,  # requires load_training = True!
+    '07_train_retrieval': False,  # requires load_training = True!
+    '08_pre_process_HDF5': False,
+    '09_load_prediction': True,
+    '10_predict_screening': True,  # requires load_prediction = True!
+    '11_predict_retrieval': False,  # requires load_prediction = True!
+    '12_validation': False,
+    '13_save_data': False
 }
 
 # ,-----------,
@@ -111,9 +116,7 @@ def main():
           greatings_header + '\n' +
           f'\'{separator}\'')
 
-    # Initializing core classes
     preprocess = PreProcess()
-    prediction = Prediction()
 
     # ,----------------------------,
     # | SAVING MODEL CONFIG TO LOG |------------------------------------------------------------------------------------
@@ -135,21 +138,24 @@ def main():
     # ,------------------,
     # | Reading CSV Data |----------------------------------------------------------------------------------------------
     # '------------------'
-    if workflow['read_csv']:
+    if workflow['00_read_csv']:
         logging.info(f'Reading input CSV data')
+        utils.tic()
         training_data = preprocess.load_csv(IN_CSV_PATH, IN_CSV_NAME)
+        t_hour, t_min, t_sec = utils.tac()
+        logging.info(f'{IN_CSV_PATH}{IN_CSV_NAME} successfully loaded into a dataframe in {t_hour}h:{t_min}m:{t_sec}s')
 
     # ,----------------------,
     # | Reading raw CSV Data |------------------------------------------------------------------------------------------
     # '----------------------'
-    if workflow['read_raw_csv']:
+    if workflow['01_read_raw_csv']:
         logging.info(f'Reading RAW Randel CSV data')
         training_data = preprocess.load_raw_csv(IN_CSV_PATH, IN_CSV_NAME)
 
     # ,------------------------------------------,
     # | Extracting region of interest by LAT LON |----------------------------------------------------------------------
     # '------------------------------------------'
-    if workflow['extract_region']:
+    if workflow['02_extract_region']:
         logging.info(f'Extracting region of interest')
         training_data = preprocess.extract_region(dataframe=training_data,
                                                    lat_min=LAT_LIMIT[0],
@@ -160,7 +166,7 @@ def main():
     # ,------------------------------,
     # | Concatenating CSV dataframes |----------------------------------------------------------------------------------
     # '------------------------------'
-    if workflow['concatenate_csv_list_to_df']:
+    if workflow['03_concatenate_csv_list_to_df']:
         logging.info(f'Reading CSV to generate a list of dataframes.')
         training_data = preprocess.load_csv_list(IN_CSV_PATH)
         logging.info(f'Concatenating list of CSV into a single dataframe')
@@ -169,7 +175,7 @@ def main():
     # ,------------------------------,
     # | Compute additional variables |----------------------------------------------------------------------------------
     # '------------------------------'
-    if workflow['compute_additional_variables']:
+    if workflow['04_compute_additional_variables']:
         logging.info(f'Computing additional variables')
         logging.info(f'Input dataset columns: {list(training_data.columns.values)}')
         training_data = preprocess.compute_additional_input_vars(training_data)
@@ -178,7 +184,7 @@ def main():
     # ,-------------------------,
     # | Load training libraries |---------------------------------------------------------------------------------------
     # '-------------------------'
-    if workflow['load_training']:
+    if workflow['05_load_training']:
         training_import_warning = f'> Importing training modules, this may take a while...'
         print(training_import_warning)
         logging.info(training_import_warning)
@@ -186,9 +192,7 @@ def main():
         from core.training import Training
 
         training = Training(INPUT_DATA=training_data,
-                            PCTAG=PCTAG,
-                            NN_RUN=NN_RUN,
-                            OUTPUT_DIR=OUTPUT_DIR,
+                            FILENAMETAG=FILENAMETAG,
                             RANDOM_SEED=RANDOM_SEED)
 
         training_done_warning = f'> Training modules loaded.'
@@ -197,7 +201,7 @@ def main():
     # ,---------------------,
     # | Training: Screening |-------------------------------------------------------------------------------------------
     # '---------------------'
-    if workflow['train_screening']:
+    if workflow['06_train_screening']:
         screening_warning = f'> Training screening model...'
         print(screening_warning)
         logging.info(screening_warning)
@@ -214,7 +218,7 @@ def main():
     # ,---------------------,
     # | Training: Retrieval |-------------------------------------------------------------------------------------------
     # '---------------------'
-    if workflow['train_retrieval']:
+    if workflow['07_train_retrieval']:
         retrieval_warning = f'> Training retrieval model...'
         print(retrieval_warning)
         logging.info(retrieval_warning)
@@ -240,25 +244,62 @@ def main():
     # ,-----------,
     # | Read HDF5 |-----------------------------------------------------------------------------------------------------
     # '-----------'
-    if workflow['pre_process_HDF5']:
+    if workflow['08_pre_process_HDF5']:
         logging.info(f'Reading HDF5')
 
-    # ,------------,
-    # | Prediction |----------------------------------------------------------------------------------------------------
-    # '------------'
-    if workflow['prediction']:
+    # ,------------------------,
+    # | Load prediction module |----------------------------------------------------------------------------------------
+    # '------------------------'
+    if workflow['09_load_prediction']:
+        prediction_import_warning = f'> Importing prediction modules, this may take a while...'
+        print(prediction_import_warning)
+        logging.info(prediction_import_warning)
+
+        from core.prediction import Prediction
+
+        prediction = Prediction(INPUT_DATA=training_data,
+                                FILENAMETAG=FILENAMETAG,
+                                RANDOM_SEED=RANDOM_SEED)
+
+        prediction_done_warning = f'> Prediction modules loaded.'
+        print(prediction_done_warning)
+        logging.info(prediction_done_warning)
+
+    # ,--------------------,
+    # | Predict: Screening |--------------------------------------------------------------------------------------------
+    # '--------------------'
+    if workflow['10_predict_screening']:
+        # Print no arquivo de LOG
+        logging.info(f'Predicting stuff')
+
+        # Chamada simples
+        prediction.status()
+
+        # Chamada que salva dentro da classe
+        prediction.save_stuff()
+
+        # Chamada que salva aqui no main
+        salvar_esse = prediction.save_outside('texto a ser salvo')
+        with open(f'{FILENAMETAG}_arquivo_de_teste_no_main.txt', 'w') as myfile:
+            myfile.write(salvar_esse)
+
+
+    # ,--------------------,
+    # | Predict: Retrieval |--------------------------------------------------------------------------------------------
+    # '--------------------'
+    if workflow['11_predict_retrieval']:
         logging.info(f'Predicting stuff')
 
     # ,------------,
     # | Validation |----------------------------------------------------------------------------------------------------
     # '------------'
-    if workflow['validation']:
+    if workflow['12_validation']:
         logging.info(f'Validating stuff')
 
     # ,-----------,
     # | Save data |----------------------------------------------------------------------------------------------------
     # '-----------'
-    if workflow['save_data']:
+    if workflow['13_save_data']:
         logging.info(f'Saving stuff')
         file_name = TRNGCSV_TO_SAVE
         utils.tic()
